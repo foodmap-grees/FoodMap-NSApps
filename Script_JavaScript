@@ -1,4 +1,4 @@
-// Get Link do Google Earth engine: https://code.earthengine.google.com/66ec51bd41d1549e1751bd57dab50676 
+// Get Link to run the code through the Google Earth Engine platform: https://code.earthengine.google.com/9af89e5ca2f330833d29591785debd8a
 
 // import vector from study area
 var studyArea = CerejeirasColorado;
