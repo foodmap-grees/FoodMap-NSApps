@@ -1,0 +1,99 @@
+// Get Link do Google Earth engine: https://code.earthengine.google.com/66ec51bd41d1549e1751bd57dab50676 
+
+// import vector from study area
+var studyArea = CerejeirasColorado;
+Map.addLayer(studyArea,{},'Study Area',false);
+
+// Center Object
+Map.centerObject(CerejeirasColorado, 6)
+
+var SRTM = SRTMimage
+  .clip(CerejeirasColorado);
+
+// Minimal and maximum for Elevation
+var min = SRTM.reduceRegion({
+  reducer: ee.Reducer.min(),
+  geometry: CerejeirasColorado,
+  scale: 30,
+  maxPixels: 1e9
+});
+var max = SRTM.reduceRegion({
+  reducer: ee.Reducer.max(),
+  geometry: CerejeirasColorado,
+  scale: 30,
+  maxPixels: 1e9
+});
+var maxAlt = ee.Number(max.get('elevation')).getInfo();
+var minAlt = ee.Number(min.get('elevation')).getInfo();
+
+Map.addLayer(SRTM, {min: minAlt, max: maxAlt}, 'SRTM_Clip', false);
+
+var SRTM_Fill = ee.Terrain.fillMinima(SRTM);
+Map.addLayer(SRTM_Fill, {min: minAlt, max: maxAlt}, 'SRTM_RO_Fill', false);
+
+var SRTM_Slope = ee.Terrain.slope(SRTM_Fill);
+var SlopeVisParam = {"opacity":1,"bands":["slope"],"max":2.07723331451416,"gamma":1};
+
+
+// Minimal and maximum for Elevation
+var min = SRTM_Slope.reduceRegion({
+  reducer: ee.Reducer.min(),
+  geometry: CerejeirasColorado,
+  scale: 30,
+  maxPixels: 1e9
+});
+var max = SRTM_Slope.reduceRegion({
+  reducer: ee.Reducer.max(),
+  geometry: CerejeirasColorado,
+  scale: 30,
+  maxPixels: 1e9
+});
+var maxSlope = ee.Number(max.get('slope')).getInfo();
+var minSlope = ee.Number(min.get('slope')).getInfo();
+
+Map.addLayer(SRTM_Slope, {min: minSlope, max: maxSlope}, 'SRTM_Slope', false);
+print(SRTM_Slope)
+
+var hotspots1 = SRTM_Slope.select('slope').lte(15);
+var hotspots1 = hotspots1.updateMask(hotspots1).rename('slope_lte_15');
+Map.addLayer(hotspots1, {palette: 'green'}, 'Declividade < 15', false);
+
+
+var hotspots2 = SRTM_Slope.select('slope').gt(15);
+var hotspots2 = hotspots2.updateMask(hotspots2).rename('slope_gt_15');
+Map.addLayer(hotspots2, {palette: 'red'}, 'Declividade > 15', false);
+
+var declimaior = SRTM_Slope.select('slope').gt(15);
+var declimaior = declimaior.updateMask(hotspots2).rename('slope_gt_15');
+Map.addLayer(declimaior, {palette: 'red'}, 'deceDeclividade > 15', false);
+
+
+/* ---- */
+// CHIRPS
+var CHIRPS_Region = CHIRPS
+  .filterBounds(CerejeirasColorado)
+  .filterDate('2019-01-01','2019-12-31')
+  .select('precipitation')
+  .map(function(image){
+    return image.clip(CerejeirasColorado)
+                .copyProperties(image,['system:time_start'])});
+
+var Rain_Annual = CHIRPS_Region.sum();
+  
+var list_CHIRPS = CHIRPS_Region.toList(2000);
+print('CHIRPS list:',list_CHIRPS);
+Map.addLayer(Rain_Annual, {min:1000, max:2500}, 'Precipitação CHIRPS', false);
+
+var hotspots3 = Rain_Annual.select('precipitation').lte(1800);
+var hotspots3 = hotspots3.updateMask(hotspots3).rename('precipitation_lte_15');
+Map.addLayer(hotspots3, {palette: 'gray'}, 'Precipitação < 1800', false);
+
+var hotspots4 = Rain_Annual.select('precipitation').gt(1800);
+var hotspots4 = hotspots4.updateMask(hotspots4).rename('precipitation_gt_15');
+Map.addLayer(hotspots4, {palette: 'blue'}, 'Precipitação > 1800', false);
+
+//var all = hotspots1.addBands(hotspots2).addBands(hotspots3).addBands(hotspots4);
+
+var anualcrops =  Rain_Annual.select('precipitation').gt(1800).and(SRTM_slope.select('slope').lte(15));
+Map.addLayer(anualcrops)
+
